@@ -50,7 +50,6 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import {
-	EditGuardError,
 	type EditInput,
 	type EditOutcome,
 	editOutcome,
@@ -153,7 +152,13 @@ const EDIT_SCHEMA = Type.Object({
 // ============================================================================
 
 function recordRead(input: Record<string, unknown>, cwd: string): void {
-	const rawPath = input.file_path;
+	// Reads are reported under different key names depending on the active
+	// read tool: pi's built-in `read` uses `path`, while picc-read (the
+	// Claude Code port) uses `file_path`. Accept both so the read guard is
+	// satisfied no matter which read tool the session is using.
+	const rawPath =
+		(typeof input.file_path === "string" && input.file_path) ||
+		(typeof input.path === "string" && input.path);
 	if (typeof rawPath !== "string" || !rawPath) return;
 
 	let fullPath: string;
@@ -166,13 +171,19 @@ function recordRead(input: Record<string, unknown>, cwd: string): void {
 	try {
 		const meta = readFileSyncWithMetadata(fullPath);
 		const timestamp = getFileModificationTime(fullPath);
-		const offset = typeof input.offset === "number" ? input.offset : undefined;
-		const limit = typeof input.limit === "number" ? input.limit : undefined;
+		// Always store as a full read (`offset: undefined`, `limit: undefined`).
+		// We cannot reliably distinguish a full read from a partial read from
+		// the `tool_result` event alone (no read-output content / truncation
+		// info is exposed), and being too strict here causes false positives
+		// when models default `offset: 1` or when a read tool injects `path`
+		// defaults. The `modified-since-read` check in `editOutcome` still
+		// guards against stale edits; sacrificing the partial-read guard is
+		// the right trade-off (defense-in-depth, not correctness).
 		const entry: ReadEntry = {
 			content: meta.content,
 			timestamp,
-			offset,
-			limit,
+			offset: undefined,
+			limit: undefined,
 		};
 		readStateSet(fullPath, entry);
 	} catch {
@@ -228,17 +239,12 @@ export default function (pi: ExtensionAPI): void {
 					details: outcome,
 				};
 			} catch (err) {
-				const message =
-					err instanceof EditGuardError
-						? err.message
-						: err instanceof Error
-							? err.message
-							: String(err);
-				return {
-					content: [{ type: "text", text: message }],
-					isError: true,
-					details: { type: "error", path: input.file_path },
-				};
+				// pi's agent loop only flags a tool result as errored when
+				// execute() rejects — a resolved `{ isError: true }` is dropped
+				// because AgentToolResult has no such field. Throw so the
+				// guard / validation failure is surfaced as a real tool error
+				// (matching pi's built-in `edit`, which also throws).
+				throw err instanceof Error ? err : new Error(String(err));
 			}
 		},
 	});

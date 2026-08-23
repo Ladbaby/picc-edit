@@ -16,6 +16,7 @@ import {
 import {
 	convertLeadingTabsToSpaces,
 	findSimilarFile,
+	readFileSyncWithMetadata,
 	writeTextContent,
 } from "../src/file.js";
 import {
@@ -202,5 +203,30 @@ describe("editOutcome", () => {
 		} catch (e) {
 			expect(e).toBeInstanceOf(EditGuardError);
 		}
+	});
+
+	// The modified-since-read guard must still fire when the file changes
+	// after the recorded read (defense against stale writes). This is the
+	// remaining safety net after recordRead was simplified to always store
+	// full-read entries.
+	it("blocks edit when file is modified after the recorded read", async () => {
+		const file = join(cwd, "stale.txt");
+		await writeFile(file, "first content\n");
+		const entry = readFileSyncWithMetadata(file);
+		readStateSet(file, {
+			content: entry.content,
+			timestamp: Date.now() - 10_000, // pretend we read 10s ago
+			offset: undefined,
+			limit: undefined,
+		});
+		// Give the file a fresh mtime so it looks modified-since-read.
+		await new Promise((r) => setTimeout(r, 20));
+		await writeFile(file, "first content\nsecond line\n");
+		await expect(
+			editOutcome(
+				{ file_path: file, old_string: "first content", new_string: "X" },
+				cwd,
+			),
+		).rejects.toBeInstanceOf(EditGuardError);
 	});
 });
