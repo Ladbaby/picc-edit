@@ -60,6 +60,7 @@ import {
 	editSummaryText,
 } from "./src/edit.js";
 import {
+	convertLeadingTabsToSpaces,
 	getFileModificationTime,
 	readFileSyncWithMetadata,
 } from "./src/file.js";
@@ -246,12 +247,15 @@ export default function (pi: ExtensionAPI): void {
 					? replaceAllMessage(outcome.filePath)
 					: singleEditMessage(outcome.filePath);
 				// Display-oriented, line-numbered diff in the exact format the
-				// built-in diff viewer (`renderDiff`) expects. Computed from the
-				// display-space (tab-converted) contents so it matches what was
-				// actually written. Lives only in `details` (TUI channel) — the
-				// model sees just `content`.
+				// built-in diff viewer (`renderDiff`) expects. Both sides are put
+				// in the same display space (leading tabs → 2 spaces): `newFile`
+				// is already tab-converted by editOutcome, so the old side must
+				// be too — otherwise every tab-indented line looks changed and
+				// the diff balloons to the whole file. Mirrors how
+				// `structuredPatch` is computed (tab-convert both sides). Lives
+				// only in `details` (TUI channel) — the model sees just `content`.
 				const { diff } = generateDiffString(
-					outcome.originalFile,
+					convertLeadingTabsToSpaces(outcome.originalFile),
 					outcome.newFile,
 				);
 				const { added, removed } = countLinesChanged(
