@@ -52,7 +52,6 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { countLinesChanged } from "./src/diff.js";
 import {
 	type EditInput,
 	type EditOutcome,
@@ -222,6 +221,12 @@ export default function (pi: ExtensionAPI): void {
 		promptSnippet: "Make precise string replacements in files",
 		promptGuidelines: [],
 		parameters: EDIT_SCHEMA,
+		// Rely on the framework's default background shell (colored Box) rather
+		// than self-framing. This overrides the built-in `edit`, whose `renderShell:
+		// "self"` we do NOT want to inherit — in "self" mode the framework would
+		// skip the background unless we supplied our own Box. "default" gives the
+		// standard pending/success/error background for free (see tool-execution).
+		renderShell: "default",
 		executionMode: "sequential",
 		async execute(
 			_toolCallId,
@@ -270,34 +275,35 @@ export default function (pi: ExtensionAPI): void {
 			t.setText(text);
 			return t;
 		},
-		renderResult(result, { expanded, isPartial }, theme, context) {
+		renderResult(result, { isPartial }, theme, context) {
 			if (isPartial) {
 				return new Text(theme.fg("warning", "Editing..."), 0, 0);
+			}
+			const t =
+				(context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+			// On error, details is undefined. Show the error message in red.
+			if (context.isError) {
+				const errorMsg = result.content
+					.filter(
+						(c): c is { type: "text"; text: string } => c.type === "text",
+					)
+					.map((c) => c.text)
+					.join("\n");
+				t.setText(theme.fg("error", errorMsg || "Edit failed"));
+				return t;
 			}
 			const details = result.details as
 				| (EditOutcome & { diff?: string })
 				| undefined;
-			const t =
-				(context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-			if (!details?.diff) {
-				t.setText(theme.fg("success", "Applied"));
-				return t;
-			}
-			// Collapsed: a compact `+added / -removed` stat. Expanded (ctrl+e):
-			// the full colored diff with word-level highlighting, identical to
-			// the built-in edit viewer (same `renderDiff` used internally).
-			const { added, removed } = countLinesChanged(
-				details.structuredPatch,
-				details.newFile,
+			// Full colored diff (added/removed lines with word-level highlighting),
+			// identical to the built-in edit viewer (same `renderDiff` used internally).
+			// The leading blank line separates it from the call header, matching the
+			// built-in's Spacer(1) between the header and the diff body.
+			t.setText(
+				details?.diff
+					? "\n" + renderDiff(details.diff)
+					: theme.fg("success", "Applied"),
 			);
-			let text =
-				theme.fg("success", `+${added}`) +
-				theme.fg("dim", " / ") +
-				theme.fg("error", `-${removed}`);
-			if (expanded) {
-				text += "\n" + renderDiff(details.diff);
-			}
-			t.setText(text);
 			return t;
 		},
 	});
