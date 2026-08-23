@@ -52,10 +52,12 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { countLinesChanged } from "./src/diff.js";
 import {
 	type EditInput,
 	type EditOutcome,
 	editOutcome,
+	editSummaryText,
 } from "./src/edit.js";
 import {
 	getFileModificationTime,
@@ -252,9 +254,13 @@ export default function (pi: ExtensionAPI): void {
 					outcome.originalFile,
 					outcome.newFile,
 				);
+				const { added, removed } = countLinesChanged(
+					outcome.structuredPatch,
+					outcome.newFile,
+				);
 				return {
 					content: [{ type: "text", text: message }],
-					details: { ...outcome, diff },
+					details: { ...outcome, diff, additions: added, removals: removed },
 				};
 			} catch (err) {
 				// pi's agent loop only flags a tool result as errored when
@@ -293,17 +299,26 @@ export default function (pi: ExtensionAPI): void {
 				return t;
 			}
 			const details = result.details as
-				| (EditOutcome & { diff?: string })
+				| (EditOutcome & {
+						diff?: string;
+						additions: number;
+						removals: number;
+					})
 				| undefined;
-			// Full colored diff (added/removed lines with word-level highlighting),
-			// identical to the built-in edit viewer (same `renderDiff` used internally).
-			// The leading blank line separates it from the call header, matching the
-			// built-in's Spacer(1) between the header and the diff body.
-			t.setText(
-				details?.diff
-					? "\n" + renderDiff(details.diff)
-					: theme.fg("success", "Applied"),
-			);
+			// Summary line above the diff ("Added N, removed M"), matching
+			// Claude Code's FileEditToolUpdatedMessage. Counts come from
+			// details (set in execute); the leading blank line separates the
+			// summary from the call header.
+			if (details?.diff) {
+				t.setText(
+					"\n" +
+						theme.fg("success", editSummaryText(details.additions, details.removals)) +
+						"\n" +
+						renderDiff(details.diff),
+				);
+			} else {
+				t.setText(theme.fg("success", "Applied"));
+			}
 			return t;
 		},
 	});

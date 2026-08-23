@@ -6,7 +6,7 @@ import {
 	FILE_MODIFIED_SINCE_READ_ERROR,
 	FILE_NOT_READ_ERROR,
 } from "../src/constants.js";
-import { EditGuardError, editOutcome } from "../src/edit.js";
+import { EditGuardError, editOutcome, editSummaryText } from "../src/edit.js";
 import {
 	applyEditToFile,
 	findActualString,
@@ -91,6 +91,27 @@ describe("prompt messages", () => {
 		expect(replaceAllMessage("/a.txt")).toBe(
 			"The file /a.txt has been updated. All occurrences were successfully replaced.",
 		);
+	});
+});
+
+describe("editSummaryText", () => {
+	it("formats additions only", () => {
+		expect(editSummaryText(1, 0)).toBe("Added 1 line");
+		expect(editSummaryText(3, 0)).toBe("Added 3 lines");
+	});
+
+	it("formats removals only (capitalized verb)", () => {
+		expect(editSummaryText(0, 1)).toBe("Removed 1 line");
+		expect(editSummaryText(0, 5)).toBe("Removed 5 lines");
+	});
+
+	it("formats both (lowercase removal verb, comma-joined)", () => {
+		expect(editSummaryText(1, 2)).toBe("Added 1 line, removed 2 lines");
+		expect(editSummaryText(4, 7)).toBe("Added 4 lines, removed 7 lines");
+	});
+
+	it("falls back to Applied when nothing changed", () => {
+		expect(editSummaryText(0, 0)).toBe("Applied");
 	});
 });
 

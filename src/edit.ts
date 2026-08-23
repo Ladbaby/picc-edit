@@ -59,6 +59,27 @@ export type EditOutcome = {
   replaceAll: boolean;
 };
 
+/**
+ * Format the "Added N lines, removed M lines" summary line shown above the
+ * diff in the TUI, matching Claude Code's FileEditToolUpdatedMessage. Numbers
+ * are pluralized and the removal verb is lowercase when additions are present.
+ */
+export function editSummaryText(
+  additions: number,
+  removals: number,
+): string {
+  const parts: string[] = [];
+  if (additions > 0) {
+    parts.push(`Added ${additions} line${additions === 1 ? "" : "s"}`);
+  }
+  if (removals > 0) {
+    parts.push(
+      `${additions > 0 ? "removed" : "Removed"} ${removals} line${removals === 1 ? "" : "s"}`,
+    );
+  }
+  return parts.length > 0 ? parts.join(", ") : "Applied";
+}
+
 /** Thrown for read-guard / edit-validation failures with a model-facing msg. */
 export class EditGuardError extends Error {
   // biome-ignore lint/complexity/noUselessConstructor: kept for `instanceof` semantics.
