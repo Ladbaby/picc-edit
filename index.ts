@@ -44,11 +44,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type {
-	ExtensionAPI,
-	ExtensionContext,
+import {
+	type ExtensionAPI,
+	type ExtensionContext,
+	generateDiffString,
+	renderDiff,
 } from "@earendil-works/pi-coding-agent";
+import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import { countLinesChanged } from "./src/diff.js";
 import {
 	type EditInput,
 	type EditOutcome,
@@ -234,9 +238,18 @@ export default function (pi: ExtensionAPI): void {
 				const message = outcome.replaceAll
 					? replaceAllMessage(outcome.filePath)
 					: singleEditMessage(outcome.filePath);
+				// Display-oriented, line-numbered diff in the exact format the
+				// built-in diff viewer (`renderDiff`) expects. Computed from the
+				// display-space (tab-converted) contents so it matches what was
+				// actually written. Lives only in `details` (TUI channel) — the
+				// model sees just `content`.
+				const { diff } = generateDiffString(
+					outcome.originalFile,
+					outcome.newFile,
+				);
 				return {
 					content: [{ type: "text", text: message }],
-					details: outcome,
+					details: { ...outcome, diff },
 				};
 			} catch (err) {
 				// pi's agent loop only flags a tool result as errored when
@@ -246,6 +259,46 @@ export default function (pi: ExtensionAPI): void {
 				// (matching pi's built-in `edit`, which also throws).
 				throw err instanceof Error ? err : new Error(String(err));
 			}
+		},
+		renderCall(args, theme, context) {
+			const path =
+				typeof args.file_path === "string" ? args.file_path : "";
+			let text = theme.fg("toolTitle", theme.bold(`${toolName} `));
+			text += theme.fg("accent", path);
+			const t =
+				(context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+			t.setText(text);
+			return t;
+		},
+		renderResult(result, { expanded, isPartial }, theme, context) {
+			if (isPartial) {
+				return new Text(theme.fg("warning", "Editing..."), 0, 0);
+			}
+			const details = result.details as
+				| (EditOutcome & { diff?: string })
+				| undefined;
+			const t =
+				(context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+			if (!details?.diff) {
+				t.setText(theme.fg("success", "Applied"));
+				return t;
+			}
+			// Collapsed: a compact `+added / -removed` stat. Expanded (ctrl+e):
+			// the full colored diff with word-level highlighting, identical to
+			// the built-in edit viewer (same `renderDiff` used internally).
+			const { added, removed } = countLinesChanged(
+				details.structuredPatch,
+				details.newFile,
+			);
+			let text =
+				theme.fg("success", `+${added}`) +
+				theme.fg("dim", " / ") +
+				theme.fg("error", `-${removed}`);
+			if (expanded) {
+				text += "\n" + renderDiff(details.diff);
+			}
+			t.setText(text);
+			return t;
 		},
 	});
 }

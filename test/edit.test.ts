@@ -123,6 +123,7 @@ describe("editOutcome", () => {
 			cwd,
 		);
 		expect(outcome.originalFile).toBe("");
+		expect(outcome.newFile).toBe("created");
 		expect(await readFile(file, "utf8")).toBe("created");
 	});
 
@@ -167,6 +168,7 @@ describe("editOutcome", () => {
 		);
 		expect(outcome.replaceAll).toBe(false);
 		expect(outcome.originalFile).toBe(original);
+		expect(outcome.newFile).toBe("one\nTWO\nthree");
 		expect(await readFile(file, "utf8")).toBe("one\nTWO\nthree");
 		expect(outcome.structuredPatch.length).toBeGreaterThan(0);
 	});

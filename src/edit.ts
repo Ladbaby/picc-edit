@@ -52,6 +52,9 @@ export type EditOutcome = {
   oldString: string;
   newString: string;
   originalFile: string;
+  /** Post-edit file content, with leading tabs converted to 2 spaces (display
+   * space, same content as was written). Used by the TUI diff viewer. */
+  newFile: string;
   structuredPatch: Hunk[];
   replaceAll: boolean;
 };
@@ -166,6 +169,7 @@ export async function editOutcome(
         oldString: old_string,
         newString: new_string,
         originalFile: originalContent,
+        newFile: convertLeadingTabsToSpaces(updatedFile),
         structuredPatch: patch,
         replaceAll: replace_all,
       };
@@ -243,10 +247,11 @@ export async function editOutcome(
     timestamp: getFileModificationTime(fullFilePath),
   });
 
+  const newFile = convertLeadingTabsToSpaces(updatedFile);
   const structuredPatch = getPatchFromContents({
     filePath: fullFilePath,
     oldContent: convertLeadingTabsToSpaces(originalContent),
-    newContent: convertLeadingTabsToSpaces(updatedFile),
+    newContent: newFile,
   });
 
   return {
@@ -254,6 +259,7 @@ export async function editOutcome(
     oldString: actualOldString,
     newString: actualNewString,
     originalFile: originalContent,
+    newFile,
     structuredPatch,
     replaceAll: replace_all,
   };
