@@ -50,7 +50,6 @@ import {
 	type ExtensionAPI,
 	type ExtensionContext,
 	generateDiffString,
-	renderDiff,
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
@@ -59,7 +58,6 @@ import {
 	type EditInput,
 	type EditOutcome,
 	editOutcome,
-	editSummaryText,
 } from "./src/edit.js";
 import {
 	convertLeadingTabsToSpaces,
@@ -78,6 +76,7 @@ import {
 	readStateClear,
 	readStateSet,
 } from "./src/readState.js";
+import { renderDiff } from "./src/renderDiff.js";
 
 // ============================================================================
 // Config (mirrors picc-write)
@@ -318,13 +317,29 @@ export default function (pi: ExtensionAPI): void {
 			// Summary line above the diff ("Added N, removed M"), matching
 			// Claude Code's FileEditToolUpdatedMessage. Counts come from
 			// details (set in execute); the leading blank line separates the
-			// summary from the call header.
+			// summary from the call header. Styled like picc-write's
+			// createPreviewText header: muted text with the counts bolded.
 			if (details?.diff) {
+				const summaryParts: string[] = [];
+				if (details.additions > 0) {
+					summaryParts.push(
+						`Added ${theme.bold(String(details.additions))} line${details.additions === 1 ? "" : "s"}`,
+					);
+				}
+				if (details.removals > 0) {
+					summaryParts.push(
+						`${details.additions > 0 ? "removed" : "Removed"} ${theme.bold(String(details.removals))} line${details.removals === 1 ? "" : "s"}`,
+					);
+				}
+				const summary =
+					summaryParts.length > 0
+						? summaryParts.join(", ")
+						: "Applied";
 				t.setText(
 					"\n" +
-						theme.fg("success", editSummaryText(details.additions, details.removals)) +
+						theme.fg("muted", summary) +
 						"\n" +
-						renderDiff(details.diff),
+						renderDiff(details.diff, theme),
 				);
 			} else {
 				t.setText(theme.fg("success", "Applied"));
