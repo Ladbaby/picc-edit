@@ -24,6 +24,7 @@ import {
 	singleEditMessage,
 } from "../src/prompt.js";
 import {
+	fileStateToolName,
 	readStateClear,
 	readStateSet,
 } from "../src/readState.js";
@@ -115,6 +116,23 @@ describe("editSummaryText", () => {
 	});
 });
 
+describe("fileStateToolName", () => {
+	it("treats read/write/edit (both cases) as file-state tools", () => {
+		expect(fileStateToolName("read")).toBe(true);
+		expect(fileStateToolName("Read")).toBe(true);
+		expect(fileStateToolName("write")).toBe(true);
+		expect(fileStateToolName("Write")).toBe(true);
+		expect(fileStateToolName("edit")).toBe(true);
+		expect(fileStateToolName("Edit")).toBe(true);
+	});
+
+	it("rejects unrelated tool names", () => {
+		expect(fileStateToolName("bash")).toBe(false);
+		expect(fileStateToolName("grep")).toBe(false);
+		expect(fileStateToolName("")).toBe(false);
+	});
+});
+
 describe("editOutcome", () => {
 	let cwd: string;
 	beforeEach(async () => {
@@ -154,6 +172,27 @@ describe("editOutcome", () => {
 		await expect(
 			editOutcome({ file_path: file, old_string: "old", new_string: "new" }, cwd),
 		).rejects.toMatchObject({ message: FILE_NOT_READ_ERROR });
+	});
+
+	it("allows editing a file the agent just wrote (no re-read needed)", async () => {
+		// Simulates the write→edit flow: a `write` result seeds read-state with a
+		// fresh full-read entry (what recordRead now does for write/edit too), so
+		// the follow-up edit must NOT throw FILE_NOT_READ_ERROR — matching Claude
+		// Code, where FileWriteTool refreshes the shared `readFileState`.
+		const file = join(cwd, "written.txt");
+		await writeFile(file, "one\ntwo\nthree");
+		readStateSet(file, {
+			content: "one\ntwo\nthree",
+			timestamp: Math.floor((await stat(file)).mtimeMs),
+			offset: undefined,
+			limit: undefined,
+		});
+		const outcome = await editOutcome(
+			{ file_path: file, old_string: "two", new_string: "TWO" },
+			cwd,
+		);
+		expect(outcome.newFile).toBe("one\nTWO\nthree");
+		expect(await readFile(file, "utf8")).toBe("one\nTWO\nthree");
 	});
 
 	it("rejects editing a file modified since it was read", async () => {

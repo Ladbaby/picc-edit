@@ -12,8 +12,10 @@
  *     `edits: [{oldText, newText}]` array).
  *   - Enforces Claude Code's read-first guard: an existing file must have been
  *     read this session, and must not have been modified since that read.
- *     Read-state is tracked from `tool_result` events (any read tool), the
- *     same mechanism picc-write uses.
+ *     Read-state is tracked from `tool_result` events for any file tool that
+ *     establishes known contents (read/write/edit) — mirroring Claude Code,
+ *     where a file the agent just wrote or edited is immediately editable.
+ *     The same mechanism picc-write uses.
  *   - Quote normalization: `old_string`/`new_string` may use straight quotes
  *     to match a file that contains curly quotes, preserving the file's
  *     typography.
@@ -71,6 +73,7 @@ import {
 	singleEditMessage,
 } from "./src/prompt.js";
 import {
+	fileStateToolName,
 	type ReadEntry,
 	readStateClear,
 	readStateSet,
@@ -209,10 +212,13 @@ export default function (pi: ExtensionAPI): void {
 		readStateClear();
 	});
 
-	// Observe successful reads (any read tool) to feed the edit guard.
-	// `tool_result` events carry no cwd of their own; use the process cwd.
+	// Observe successful file tools (read/write/edit) to feed the edit guard.
+	// Claude Code refreshes its shared `readFileState` from all three, so a file
+	// the agent just wrote or edited is immediately editable without a redundant
+	// re-read. `tool_result` events carry no cwd of their own; use the process
+	// cwd.
 	pi.on("tool_result", (event) => {
-		if (event.toolName !== "read" && event.toolName !== "Read") return;
+		if (!fileStateToolName(event.toolName)) return;
 		if (event.isError) return;
 		recordRead(event.input, process.cwd());
 	});
