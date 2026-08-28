@@ -336,9 +336,7 @@ export default function (pi: ExtensionAPI): void {
 						? summaryParts.join(", ")
 						: "Applied";
 				t.setText(
-					"\n" +
 						theme.fg("muted", summary) +
-						"\n" +
 						renderDiff(details.diff, theme),
 				);
 			} else {
