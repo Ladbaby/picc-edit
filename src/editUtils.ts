@@ -1,11 +1,3 @@
-// =============================================================================
-// picc-edit — src/editUtils.ts
-//
-// Port of claude-code's `tools/FileEditTool/utils.ts` editing primitives:
-// `normalizeQuotes`, `findActualString`, `preserveQuoteStyle`,
-// `applyEditToFile`, `stripTrailingWhitespace`.
-// =============================================================================
-
 // Claude can't output curly quotes, so we define them as constants here for
 // Claude to use in the code. We normalize curly quotes to straight quotes
 // when applying edits.

@@ -1,9 +1,6 @@
 // =============================================================================
 // picc-edit — src/constants.ts
 //
-// Port of claude-code's `tools/FileEditTool/constants.ts` plus the read-guard
-// error strings (from `FileReadTool`/`FileEditTool`).
-// =============================================================================
 
 export const FILE_EDIT_TOOL_NAME = "Edit";
 

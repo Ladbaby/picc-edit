@@ -1,10 +1,6 @@
 // =============================================================================
 // picc-edit — src/edit.ts
 //
-// Orchestrator: a faithful port of claude-code's `FileEditTool.ts`
-// `validateInput()` + `call()` (the permission / secrets / team-memory /
-// settings-file checks are omitted — pi handles permissions separately).
-//
 // Behavior:
 //   - Existing file: must have been read this session (readState) and not
 //     modified since that read. `old_string` is matched (with quote

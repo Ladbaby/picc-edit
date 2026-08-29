@@ -1,12 +1,6 @@
 // =============================================================================
 // picc-edit — src/file.ts
 //
-// Port of the pure parts of claude-code's:
-//   - `utils/file.ts:writeTextContent` / `getFileModificationTime` /
-//     `convertLeadingTabsToSpaces` / `findSimilarFile`
-//   - `utils/fileRead.ts:detectEncodingForResolvedPath` /
-//     `detectLineEndingsForString` / `readFileSyncWithMetadata`
-//
 // Adaptors vs upstream:
 //   - `getFsImplementation()` → plain `node:fs`.
 //   - `safeResolvePath` is dropped (the caller passes an absolute path).

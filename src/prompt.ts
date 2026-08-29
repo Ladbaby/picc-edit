@@ -1,9 +1,6 @@
 // =============================================================================
 // picc-edit — src/prompt.ts
 //
-// Port of claude-code's `tools/FileEditTool/prompt.ts:
-// getEditToolDescription`.
-//
 // Adaptors vs upstream:
 //   - `isCompactLinePrefixEnabled()` is hardcoded to `true` (picc-read always
 //     uses the compact `line-number + tab` prefix).

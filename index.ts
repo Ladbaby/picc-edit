@@ -1,8 +1,7 @@
 /**
  * picc-edit: Claude Code-style Edit tool for pi.
  *
- * A faithful port of Claude Code's `Edit` tool
- * (`tools/FileEditTool/FileEditTool.ts`), registering a tool named
+ * A faithful port of Claude Code's `Edit` tool, registering a tool named
  * `edit`/`Edit` that **overrides pi's built-in `edit`** tool (same-name,
  * last-write-wins — see `core/tools/index.js`).
  *
@@ -37,10 +36,6 @@
  *   - Set `config.json` `toolName` to `"Edit"` (default location
  *     `~/.pi/agent/extensions/picc-edit/config.json`), or set
  *     `PICC_EDIT_TOOL_NAME=Edit`. Valid values: `"edit"`, `"Edit"`.
- *
- * References:
- * - Claude Code Edit tool: tools/FileEditTool/FileEditTool.ts (+ prompt.ts, utils.ts)
- * - Claude Code helpers: utils/file.ts, utils/fileRead.ts, utils/diff.ts, utils/path.ts
  */
 
 import { existsSync, readFileSync } from "node:fs";

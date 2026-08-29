@@ -1,8 +1,6 @@
 // =============================================================================
 // picc-write — src/diff.ts
 //
-// Port of claude-code's `utils/diff.ts:getPatchFromContents` /
-// `countLinesChanged`, using the `diff` npm package's `structuredPatch`.
 //
 // Adaptors vs upstream:
 //   - `countLinesChanged` is made pure (returns `{ added, removed }`) — no
