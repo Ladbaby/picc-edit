@@ -1,5 +1,7 @@
 # picc-edit
 
+[![npm downloads](https://img.shields.io/npm/dt/@ladbabynpm/picc-edit.svg)](https://www.npmjs.com/package/@ladbabynpm/picc-edit)
+
 Claude Code style **Edit** tool for [pi](https://pi.dev) — a faithful port of Claude Code's `Edit` tool, overriding pi's built-in `edit`.
 
 Part of [picc](https://github.com/Ladbaby/picc), a pi agent setup mirroring Claude Code's harness.
