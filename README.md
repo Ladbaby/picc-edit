@@ -57,8 +57,3 @@ npm run lint        # biome check
 npm run typecheck   # tsc --noEmit
 npm run test        # vitest run
 ```
-
-## References
-
-- Claude Code Edit tool: `tools/FileEditTool/FileEditTool.ts` (+ `prompt.ts`, `utils.ts`, `constants.ts`)
-- Claude Code helpers: `utils/file.ts`, `utils/fileRead.ts`, `utils/diff.ts`, `utils/path.ts`
