@@ -43,4 +43,12 @@ describe("renderDiff", () => {
 		const out = renderDiff("...skipped", theme);
 		expect(out).toContain("<toolDiffContext>...skipped</>");
 	});
+
+	it("renders unified line numbers (removed and added share the same number)", () => {
+		const out = renderDiff("-3 context\n+3 context", theme);
+		const lines = out.split("\n");
+		// No word-diff applied when content is identical; numbers match
+		expect(lines[0]).toContain("-3 ");
+		expect(lines[1]).toContain("+3 ");
+	});
 });

@@ -49,11 +49,10 @@ import { join } from "node:path";
 import {
 	type ExtensionAPI,
 	type ExtensionContext,
-	generateDiffString,
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { countLinesChanged } from "./src/diff.js";
+import { countLinesChanged, generateDisplayDiff } from "./src/diff.js";
 import {
 	type EditInput,
 	type EditOutcome,
@@ -259,7 +258,7 @@ export default function (pi: ExtensionAPI): void {
 				// the diff balloons to the whole file. Mirrors how
 				// `structuredPatch` is computed (tab-convert both sides). Lives
 				// only in `details` (TUI channel) — the model sees just `content`.
-				const { diff } = generateDiffString(
+				const diff = generateDisplayDiff(
 					convertLeadingTabsToSpaces(outcome.originalFile),
 					outcome.newFile,
 				);
