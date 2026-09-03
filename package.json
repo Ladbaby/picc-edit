@@ -1,6 +1,6 @@
 {
   "name": "@ladbabynpm/picc-edit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Claude Code style Edit tool for pi — a faithful port of Claude Code's `Edit` (exact string replacement, quote normalization, read-first guard, replace_all, structured diff).",
   "type": "module",
   "main": "index.ts",
