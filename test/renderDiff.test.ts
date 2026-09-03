@@ -10,22 +10,22 @@ const theme = {
 
 describe("renderDiff", () => {
 	it("colors added lines with fixed truecolor #207c36 (38;2;32;124;54)", () => {
-		const out = renderDiff(" 1 keep\n+2 added", theme);
-		expect(out).toContain("\x1b[38;2;32;124;54m+2 added\x1b[39m");
+		const out = renderDiff(" 1   keep\n 2 + added", theme);
+		expect(out).toContain("\x1b[38;2;32;124;54m 2 + added\x1b[39m");
 	});
 
 	it("colors removed lines via the theme", () => {
-		const out = renderDiff("-1 gone", theme);
-		expect(out).toContain("<toolDiffRemoved>-1 gone</>");
+		const out = renderDiff(" 1 - gone", theme);
+		expect(out).toContain("<toolDiffRemoved> 1 - gone</>");
 	});
 
 	it("colors context lines via the theme", () => {
-		const out = renderDiff(" 1 keep", theme);
-		expect(out).toContain("<toolDiffContext> 1 keep</>");
+		const out = renderDiff(" 1   keep", theme);
+		expect(out).toContain("<toolDiffContext> 1   keep</>");
 	});
 
 	it("applies intra-line inverse highlighting on single-line changes", () => {
-		const out = renderDiff("-1 old text\n+2 new text", theme);
+		const out = renderDiff(" 1 - old text\n 2 + new text", theme);
 		const addedLine = out.split("\n")[1];
 		// Whole added line is wrapped in the fixed color; changed word is
 		// inverse-highlighted inside it (like the built-in renderDiff).
@@ -35,8 +35,8 @@ describe("renderDiff", () => {
 	});
 
 	it("replaces tabs with spaces in line content", () => {
-		const out = renderDiff("+1 a\tb", theme);
-		expect(out).toContain("+1 a   b");
+		const out = renderDiff(" 1 + a\tb", theme);
+		expect(out).toContain(" 1 + a   b");
 	});
 
 	it("leaves unparseable lines dimmed as context", () => {
@@ -44,11 +44,17 @@ describe("renderDiff", () => {
 		expect(out).toContain("<toolDiffContext>...skipped</>");
 	});
 
-	it("renders unified line numbers (removed and added share the same number)", () => {
-		const out = renderDiff("-3 context\n+3 context", theme);
+	it("keeps the same number on a -/+ line replacement", () => {
+		const out = renderDiff(" 3 - context\n 3 + context", theme);
 		const lines = out.split("\n");
-		// No word-diff applied when content is identical; numbers match
-		expect(lines[0]).toContain("-3 ");
-		expect(lines[1]).toContain("+3 ");
+		// No word-diff applied when content is identical; numbers match.
+		expect(lines[0]).toContain(" 3 - ");
+		expect(lines[1]).toContain(" 3 + ");
+	});
+
+	it("preserves right-aligned multi-digit line numbers", () => {
+		// 10+ lines => width 2, so line 7 is padded to " 7".
+		const out = renderDiff("  7 + added", theme);
+		expect(out).toContain("  7 + added");
 	});
 });

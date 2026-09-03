@@ -62,13 +62,18 @@ export function countLinesChanged(
 }
 
 /**
- * Generate a display-oriented diff string using a **unified** line-number
- * counter (the new file's line number for all lines).
+ * Generate a display-oriented diff string matching Claude Code's `Edit`
+ * output format:
+ *   - The line number is right-aligned, then the `+`/`-` marker sits to its
+ *     right (context lines leave the marker column blank).
+ *   - Line numbering uses **two independent counters**:
+ *       - Added:   new-file line number (counter advances)
+ *       - Removed: old-file line number (old counter advances; the new counter
+ *                  does NOT advance for removed lines)
+ *       - Context: new-file line number (both counters advance)
  *
- * Numbering rules:
- *   - Context: ` NNN content`, counter advances
- *   - Added:   `+NNN content`, counter advances
- *   - Removed: `-NNN content`, counter does NOT advance
+ * Example (old = `a,b,c,d,e`; new = `a,c,e` — removes `b` and `d`):
+ *   ` 1   a`, ` 2 - b`, ` 2   c`, ` 4 - d`, ` 3   e`
  *
  * Context collapsing mirrors pi's `generateDiffString`: only up to
  * `contextLines` lines are shown before/after a change; larger gaps are
@@ -87,8 +92,18 @@ export function generateDisplayDiff(
   const maxLineNum = Math.max(oldLines.length, newLines.length);
   const lineNumWidth = String(maxLineNum).length;
 
+  let oldLineNum = 1;
   let newLineNum = 1;
   let lastWasChange = false;
+
+  // Emit one diff line. `marker` is "+", "-" or " " (blank column for
+  // context). Layout: `<gutter-space><right-aligned num><space><marker><space><content>`,
+  // so changed/context columns align and the marker sits to the right of the
+  // line number (matching Claude Code's `7 +` / `10 -` rendering).
+  const emitLine = (num: number, marker: string, line: string) => {
+    const lineNum = String(num).padStart(lineNumWidth, " ");
+    output.push(` ${lineNum} ${marker} ${line}`);
+  };
 
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
@@ -99,12 +114,12 @@ export function generateDisplayDiff(
 
     if (part.added || part.removed) {
       for (const line of raw) {
-        const lineNum = String(newLineNum).padStart(lineNumWidth, " ");
         if (part.added) {
-          output.push(`+${lineNum} ${line}`);
+          emitLine(newLineNum, "+", line);
           newLineNum++;
         } else {
-          output.push(`-${lineNum} ${line}`);
+          emitLine(oldLineNum, "-", line);
+          oldLineNum++;
         }
       }
       lastWasChange = true;
@@ -115,54 +130,41 @@ export function generateDisplayDiff(
       const hasLeadingChange = lastWasChange;
       const hasTrailingChange = nextPartIsChange;
 
+      const emitContext = (lines: string[]) => {
+        for (const line of lines) {
+          emitLine(newLineNum, " ", line);
+          oldLineNum++;
+          newLineNum++;
+        }
+      };
+      const emitEllipsis = (skipped: number) => {
+        output.push(` ${"".padStart(lineNumWidth, " ")} ...`);
+        oldLineNum += skipped;
+        newLineNum += skipped;
+      };
+
       if (hasLeadingChange && hasTrailingChange) {
         if (raw.length <= contextLines * 2) {
-          for (const line of raw) {
-            const lineNum = String(newLineNum).padStart(lineNumWidth, " ");
-            output.push(` ${lineNum} ${line}`);
-            newLineNum++;
-          }
+          emitContext(raw);
         } else {
           const leading = raw.slice(0, contextLines);
           const trailing = raw.slice(raw.length - contextLines);
           const skipped = raw.length - leading.length - trailing.length;
-          for (const line of leading) {
-            const lineNum = String(newLineNum).padStart(lineNumWidth, " ");
-            output.push(` ${lineNum} ${line}`);
-            newLineNum++;
-          }
-          output.push(` ${"".padStart(lineNumWidth, " ")} ...`);
-          newLineNum += skipped;
-          for (const line of trailing) {
-            const lineNum = String(newLineNum).padStart(lineNumWidth, " ");
-            output.push(` ${lineNum} ${line}`);
-            newLineNum++;
-          }
+          emitContext(leading);
+          emitEllipsis(skipped);
+          emitContext(trailing);
         }
       } else if (hasLeadingChange) {
         const shown = raw.slice(0, contextLines);
         const skipped = raw.length - shown.length;
-        for (const line of shown) {
-          const lineNum = String(newLineNum).padStart(lineNumWidth, " ");
-          output.push(` ${lineNum} ${line}`);
-          newLineNum++;
-        }
-        if (skipped > 0) {
-          output.push(` ${"".padStart(lineNumWidth, " ")} ...`);
-          newLineNum += skipped;
-        }
+        emitContext(shown);
+        if (skipped > 0) emitEllipsis(skipped);
       } else if (hasTrailingChange) {
         const skipped = Math.max(0, raw.length - contextLines);
-        if (skipped > 0) {
-          output.push(` ${"".padStart(lineNumWidth, " ")} ...`);
-          newLineNum += skipped;
-        }
-        for (const line of raw.slice(skipped)) {
-          const lineNum = String(newLineNum).padStart(lineNumWidth, " ");
-          output.push(` ${lineNum} ${line}`);
-          newLineNum++;
-        }
+        if (skipped > 0) emitEllipsis(skipped);
+        emitContext(raw.slice(skipped));
       } else {
+        oldLineNum += raw.length;
         newLineNum += raw.length;
       }
       lastWasChange = false;

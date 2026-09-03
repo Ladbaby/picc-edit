@@ -2,37 +2,39 @@ import { describe, expect, it } from "vitest";
 import { generateDisplayDiff } from "../src/diff.js";
 
 describe("generateDisplayDiff", () => {
-	it("uses unified new-file line numbers for additions", () => {
+	it("numbers added lines with their new-file line number (marker right)", () => {
 		const old = "a\nb\nc";
 		const newC = "a\nb\nNEW\nc";
 		const diff = generateDisplayDiff(old, newC);
 		const lines = diff.split("\n");
-		expect(lines).toContain(" 1 a");
-		expect(lines).toContain(" 2 b");
-		expect(lines).toContain("+3 NEW");
-		expect(lines).toContain(" 4 c");
+		expect(lines).toContain(" 1   a");
+		expect(lines).toContain(" 2   b");
+		expect(lines).toContain(" 3 + NEW");
+		expect(lines).toContain(" 4   c");
 	});
 
-	it("removed lines share the new-file line number of the following line", () => {
-		const old = "a\nb\nc";
-		const newC = "a\nc";
+	it("numbers removed lines with their old-file line number (multi-deletion)", () => {
+		// old `a,b,c,d,e` → new `a,c,e` removes `b` (old 2) and `d` (old 4).
+		const old = "a\nb\nc\nd\ne";
+		const newC = "a\nc\ne";
 		const diff = generateDisplayDiff(old, newC);
 		const lines = diff.split("\n");
-		// "b" is removed; it gets line 2 (the number "c" will have after removal)
-		expect(lines).toContain(" 1 a");
-		expect(lines).toContain("-2 b");
-		expect(lines).toContain(" 2 c");
+		expect(lines).toContain(" 1   a");
+		expect(lines).toContain(" 2 - b");
+		expect(lines).toContain(" 2   c");
+		expect(lines).toContain(" 4 - d");
+		expect(lines).toContain(" 3   e");
 	});
 
-	it("line replacement shows same number for - and +", () => {
+	it("line replacement shows the same number for the - and + lines", () => {
 		const old = "a\nb\nc";
 		const newC = "a\nX\nc";
 		const diff = generateDisplayDiff(old, newC);
 		const lines = diff.split("\n");
-		expect(lines).toContain(" 1 a");
-		expect(lines).toContain("-2 b");
-		expect(lines).toContain("+2 X");
-		expect(lines).toContain(" 3 c");
+		expect(lines).toContain(" 1   a");
+		expect(lines).toContain(" 2 - b");
+		expect(lines).toContain(" 2 + X");
+		expect(lines).toContain(" 3   c");
 	});
 
 	it("collapses large context gaps with ...", () => {
@@ -50,19 +52,19 @@ describe("generateDisplayDiff", () => {
 		expect(diff).toContain(" ...");
 	});
 
-	it("numbers are sequential and non-decreasing in the new file", () => {
+	it("keeps added and context numbers non-decreasing (new-file counter)", () => {
 		const old = "a\nb\nc\nd\ne";
 		const newC = "a\nX\nc\nd\ne";
 		const diff = generateDisplayDiff(old, newC);
-		const lines = diff.split("\n");
-		// Extract numbers in order
-		const nums = lines
-			.map((l) => {
-				const m = l.match(/^[+\-\s](\d+)\s/);
-				return m ? parseInt(m[1], 10) : null;
-			})
-			.filter((n): n is number => n !== null);
-		// Numbers should be non-decreasing
+		// Extract (marker, number); removed ("-") lines use the old-file
+		// counter and are excluded — only added/context (new-file counter) must
+		// be non-decreasing.
+		const nums: number[] = [];
+		for (const l of diff.split("\n")) {
+			const m = l.match(/^ (\s*\d+) ([-+ ]) /);
+			if (m && m[2] !== "-") nums.push(parseInt(m[1], 10));
+		}
+		expect(nums.length).toBeGreaterThan(0);
 		for (let i = 1; i < nums.length; i++) {
 			expect(nums[i]).toBeGreaterThanOrEqual(nums[i - 1]);
 		}

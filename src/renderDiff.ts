@@ -26,16 +26,21 @@ function renderAddedLine(line: string): string {
 	return `${ADDED_LINE_FG}${line}${FG_RESET}`;
 }
 
-/** Parse diff line to extract prefix, line number, and content.
- * Format: "+123 content" or "-123 content" or " 123 content" or "     ..." */
+/** Parse diff line to extract line number, marker, and content.
+ * Claude Code layout: `<gutter-space><right-aligned num><space><marker><space><content>`
+ * where the marker is "+" (added), "-" (removed) or " " (context), i.e.
+ * "  7 + content" / " 10 - content" / "  7   content". The number is
+ * right-padded, so `\s*\d+` captures the padding (kept for alignment). The
+ * collapsed ` ...` marker has no digits and falls through (returns null).
+ */
 function parseDiffLine(line: string): {
 	prefix: string;
 	lineNum: string;
 	content: string;
 } | null {
-	const match = line.match(/^([+-\s])(\s*\d*)\s(.*)$/);
+	const match = line.match(/^ (\s*\d+) ([-+ ]) (.*)$/);
 	if (!match) return null;
-	return { prefix: match[1], lineNum: match[2], content: match[3] };
+	return { prefix: match[2], lineNum: match[1], content: match[3] };
 }
 
 /** Replace tabs with spaces for consistent rendering. */
@@ -144,30 +149,30 @@ export function renderDiff(
 				result.push(
 					theme.fg(
 						"toolDiffRemoved",
-						`-${removed.lineNum} ${removedLine}`,
+						` ${removed.lineNum} - ${removedLine}`,
 					),
 				);
-				result.push(renderAddedLine(`+${added.lineNum} ${addedLine}`));
+				result.push(renderAddedLine(` ${added.lineNum} + ${addedLine}`));
 			} else {
 				// Show all removed lines first, then all added lines
 				for (const removed of removedLines) {
 					result.push(
 						theme.fg(
 							"toolDiffRemoved",
-							`-${removed.lineNum} ${replaceTabs(removed.content)}`,
+							` ${removed.lineNum} - ${replaceTabs(removed.content)}`,
 						),
 					);
 				}
 				for (const added of addedLines) {
 					result.push(
-						renderAddedLine(`+${added.lineNum} ${replaceTabs(added.content)}`),
+						renderAddedLine(` ${added.lineNum} + ${replaceTabs(added.content)}`),
 					);
 				}
 			}
 		} else if (parsed.prefix === "+") {
 			// Standalone added line
 			result.push(
-				renderAddedLine(`+${parsed.lineNum} ${replaceTabs(parsed.content)}`),
+				renderAddedLine(` ${parsed.lineNum} + ${replaceTabs(parsed.content)}`),
 			);
 			i++;
 		} else {
@@ -175,7 +180,7 @@ export function renderDiff(
 			result.push(
 				theme.fg(
 					"toolDiffContext",
-					` ${parsed.lineNum} ${replaceTabs(parsed.content)}`,
+					` ${parsed.lineNum}   ${replaceTabs(parsed.content)}`,
 				),
 			);
 			i++;
